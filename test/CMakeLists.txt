@@ -25,7 +25,7 @@ include(GoogleTest)
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/gtest")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/gtest/googletest/include")
 
-add_executable(plateau_test
+set(PLATEAU_TEST_SOURCES
     "test_primary_city_object_types.cpp"
     "test_mesh_extractor.cpp"
     "test_tile_extractor.cpp"
@@ -41,7 +41,6 @@ add_executable(plateau_test
     "test_dataset.cpp"
     "test_dataset_source.cpp"
     "test_server_dataset_accessor.cpp"
-    "test_fbx_writer.cpp"
     "test_lod_searcher.cpp"
     "test_texture_packer.cpp"
     "test_map_attacher.cpp"
@@ -53,6 +52,12 @@ add_executable(plateau_test
     "test_geo_reference.cpp"
     "test_geo_coordinate.cpp"
     )
+
+if(PLATEAU_USE_FBX)
+    list(APPEND PLATEAU_TEST_SOURCES "test_fbx_writer.cpp")
+endif()
+
+add_executable(plateau_test ${PLATEAU_TEST_SOURCES})
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/test_granularity_convert")
 

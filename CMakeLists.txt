@@ -35,6 +35,7 @@ cmake_policy(SET CMP0076 NEW)
 # デフォルト値は Unity向けに dynamic, MT です。ただし Debugビルドの時は Unity でも MD にしてください。
 SET(BUILD_LIB_TYPE "dynamic" CACHE STRING "static or dynamic")
 SET(RUNTIME_LIB_TYPE "MT" CACHE STRING "MT or MD")
+option(PLATEAU_USE_FBX "Enable FBX SDK support" ON)
 if(NOT ( BUILD_LIB_TYPE STREQUAL "static" OR BUILD_LIB_TYPE STREQUAL "dynamic"))
   message(FATAL_ERROR "Variable not set. use -D BUILD_LIB_TYPE=static or dynamic")
 endif()
@@ -215,46 +216,52 @@ if( NOT(IOS OR ANDROID) )
 
   add_subdirectory("3rdparty/libxml2")
 
-  ## FBX SDK
-  set(FBXSDK_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fbx_sdk/2020.3.1/include")
+  if(PLATEAU_USE_FBX)
+    ## FBX SDK
+    set(FBXSDK_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fbx_sdk/2020.3.1/include")
 
-  if(UNIX)
-    if (APPLE)
-      set(FBXSDK_LIB_PATH_SUFFIXES mac)
-    else()
+    if(UNIX)
+      if (APPLE)
+        set(FBXSDK_LIB_PATH_SUFFIXES mac)
+      else()
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+          set(FBXSDK_LIB_PATH_SUFFIXES linux64)
+        elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+          set(FBXSDK_LIB_PATH_SUFFIXES linux32)
+        endif()
+      endif()
+    elseif(WIN32)
       if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-        set(FBXSDK_LIB_PATH_SUFFIXES linux64)
+        set(FBXSDK_LIB_PATH_SUFFIXES win64)
       elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
-        set(FBXSDK_LIB_PATH_SUFFIXES linux32)
+        set(FBXSDK_LIB_PATH_SUFFIXES win32)
       endif()
     endif()
-  elseif(WIN32)
-    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-      set(FBXSDK_LIB_PATH_SUFFIXES win64)
-    elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
-      set(FBXSDK_LIB_PATH_SUFFIXES win32)
+
+    set(FBXSDK_LIB_PATH_SUFFIXES "${FBXSDK_LIB_PATH_SUFFIXES}/${FBXSDK_LAST_DIR_NAME}")
+    set(FBXSDK_LIB_NAME "libfbxsdk")
+    if(WIN32)
+      string(APPEND FBXSDK_LIB_NAME "-${FBXSDK_MT_OR_MD}")
+    else()
+      string(APPEND FBXSDK_LIB_NAME ".a")
     endif()
-  endif()
 
-  set(FBXSDK_LIB_PATH_SUFFIXES "${FBXSDK_LIB_PATH_SUFFIXES}/${FBXSDK_LAST_DIR_NAME}")
-  set(FBXSDK_LIB_NAME "libfbxsdk")
-  if(WIN32)
-    string(APPEND FBXSDK_LIB_NAME "-${FBXSDK_MT_OR_MD}")
+    find_library(FBXSDK_LIBRARIES
+      NAMES
+        ${FBXSDK_LIB_NAME}
+      PATHS
+        ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fbx_sdk/2020.3.1/lib
+      PATH_SUFFIXES
+        ${FBXSDK_LIB_PATH_SUFFIXES}
+      NO_DEFAULT_PATH
+      NO_CMAKE_FIND_ROOT_PATH
+    )
+    message("PLATEAU_USE_FBX=ON: ${FBXSDK_LIB_PATH_SUFFIXES} , ${FBXSDK_LIBRARIES}")
   else()
-    string(APPEND FBXSDK_LIB_NAME ".a")
+    message("PLATEAU_USE_FBX=OFF: FBX SDK support is disabled")
+    set(FBXSDK_INCLUDE "")
+    set(FBXSDK_LIBRARIES "")
   endif()
-
-  find_library(FBXSDK_LIBRARIES
-    NAMES
-      ${FBXSDK_LIB_NAME}
-    PATHS
-      ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fbx_sdk/2020.3.1/lib
-    PATH_SUFFIXES
-      ${FBXSDK_LIB_PATH_SUFFIXES}
-    NO_DEFAULT_PATH
-    NO_CMAKE_FIND_ROOT_PATH
-  )
-  message("${FBXSDK_LIB_PATH_SUFFIXES} , ${FBXSDK_LIBRARIES}")
 endif()
 
 ## openssl
@@ -353,7 +360,9 @@ if( NOT(IOS OR ANDROID) )
   add_subdirectory("examples/log_skipped_elements")
   add_subdirectory("examples/export_obj")
   add_subdirectory("examples/export_gltf")
-  add_subdirectory("examples/export_fbx")
+  if(PLATEAU_USE_FBX)
+    add_subdirectory("examples/export_fbx")
+  endif()
   add_subdirectory("examples/https_mock_test")
   add_subdirectory("examples/texture_packing")
 endif()
