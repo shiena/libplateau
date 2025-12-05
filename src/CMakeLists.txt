@@ -23,10 +23,17 @@ endif()
 if( NOT(IOS OR ANDROID) )
   # plateauにリンクするのは動的ライブラリではなく静的ライブラリである必要があります。
   # なぜなら、他の動的ライブラリへの依存が生まれてしまうとUnityでDllNotFoundExceptionになるためです。
-  target_link_libraries(plateau PUBLIC
-          citygml xerces-c GLTFSDK crypto ssl "${FBXSDK_LIBRARIES}" LibXml2 "${ZLIB_LIBRARY}" c_wrapper "${LibOpenMeshCore}" "${LibOpenMeshTools}"
-          )
-  target_include_directories(plateau PUBLIC "${CMAKE_SOURCE_DIR}/include" "${LIBCITYGML_INCLUDE}" "${GLTFSDK_INCLUDE}" "${CPPHTTPLIB_INCLUDE}" "${FBXSDK_INCLUDE}")
+  if(PLATEAU_USE_FBX)
+    target_link_libraries(plateau PUBLIC
+            citygml xerces-c GLTFSDK crypto ssl "${FBXSDK_LIBRARIES}" LibXml2 "${ZLIB_LIBRARY}" c_wrapper "${LibOpenMeshCore}" "${LibOpenMeshTools}"
+            )
+    target_include_directories(plateau PUBLIC "${CMAKE_SOURCE_DIR}/include" "${LIBCITYGML_INCLUDE}" "${GLTFSDK_INCLUDE}" "${CPPHTTPLIB_INCLUDE}" "${FBXSDK_INCLUDE}")
+  else()
+    target_link_libraries(plateau PUBLIC
+            citygml xerces-c GLTFSDK crypto ssl LibXml2 "${ZLIB_LIBRARY}" c_wrapper "${LibOpenMeshCore}" "${LibOpenMeshTools}"
+            )
+    target_include_directories(plateau PUBLIC "${CMAKE_SOURCE_DIR}/include" "${LIBCITYGML_INCLUDE}" "${GLTFSDK_INCLUDE}" "${CPPHTTPLIB_INCLUDE}")
+  endif()
 
   # 注意点:
   # libpngのバージョンは、Unreal EngineのPngImageWrapper.hに記載のバージョンに合わせる必要があります。
@@ -98,8 +105,10 @@ if(BUILD_LIB_TYPE STREQUAL "static")
           $<TARGET_FILE:png_static>
           $<TARGET_FILE:tiff>
           $<TARGET_FILE:hmm>
-          ${JPEG_TURBO_LIBRARIES}
-          ${FBXSDK_LIBRARIES})
+          ${JPEG_TURBO_LIBRARIES})
+  if(PLATEAU_USE_FBX)
+    list(APPEND COMBINE_LIB_FILES ${FBXSDK_LIBRARIES})
+  endif()
 
   if(WIN32)
     list(APPEND COMBINE_LIB_FILES
