@@ -30,7 +30,7 @@ if( NOT(IOS OR ANDROID) )
     target_include_directories(plateau PUBLIC "${CMAKE_SOURCE_DIR}/include" "${LIBCITYGML_INCLUDE}" "${GLTFSDK_INCLUDE}" "${CPPHTTPLIB_INCLUDE}" "${FBXSDK_INCLUDE}")
   else()
     target_link_libraries(plateau PUBLIC
-            citygml xerces-c GLTFSDK crypto ssl LibXml2 "${ZLIB_LIBRARY}" c_wrapper "${LibOpenMeshCore}" "${LibOpenMeshTools}"
+            citygml xerces-c GLTFSDK crypto ssl "${ZLIB_LIBRARY}" c_wrapper "${LibOpenMeshCore}" "${LibOpenMeshTools}"
             )
     target_include_directories(plateau PUBLIC "${CMAKE_SOURCE_DIR}/include" "${LIBCITYGML_INCLUDE}" "${GLTFSDK_INCLUDE}" "${CPPHTTPLIB_INCLUDE}")
   endif()
@@ -99,7 +99,6 @@ if(BUILD_LIB_TYPE STREQUAL "static")
           $<TARGET_FILE:GLTFSDK>
           $<TARGET_FILE:crypto>
           $<TARGET_FILE:ssl>
-          $<TARGET_FILE:LibXml2>
           $<TARGET_FILE:httplib>
           $<TARGET_FILE:zlibstatic>
           $<TARGET_FILE:png_static>
@@ -107,7 +106,7 @@ if(BUILD_LIB_TYPE STREQUAL "static")
           $<TARGET_FILE:hmm>
           ${JPEG_TURBO_LIBRARIES})
   if(PLATEAU_USE_FBX)
-    list(APPEND COMBINE_LIB_FILES ${FBXSDK_LIBRARIES})
+    list(APPEND COMBINE_LIB_FILES $<TARGET_FILE:LibXml2> ${FBXSDK_LIBRARIES})
   endif()
 
   if(WIN32)
@@ -123,7 +122,10 @@ if(BUILD_LIB_TYPE STREQUAL "static")
   endif()
 
   if(BUILD_LIB_TYPE STREQUAL "static")
-    set(COMBINE_LIB_DEPENDS plateau citygml xerces-c GLTFSDK crypto ssl LibXml2 httplib zlibstatic libjpeg-turbo png_static tiff ${LibOpenMeshCore} ${LibOpenMeshTools} hmm)
+    set(COMBINE_LIB_DEPENDS plateau citygml xerces-c GLTFSDK crypto ssl httplib zlibstatic libjpeg-turbo png_static tiff ${LibOpenMeshCore} ${LibOpenMeshTools} hmm)
+    if(PLATEAU_USE_FBX)
+      list(APPEND COMBINE_LIB_DEPENDS LibXml2)
+    endif()
 
     # windows で libファイル結合します。
     # 参考 : https://stackoverflow.com/questions/60190374/how-to-bundle-multiple-static-libraries-into-single-library-in-cmake-for-windows

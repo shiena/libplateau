@@ -28,6 +28,9 @@
 cmake_minimum_required(VERSION 3.8)
 cmake_policy(SET CMP0076 NEW)
 
+# 3rdpartyライブラリのinstallルールをスキップ（export setのエラー回避）
+set(CMAKE_SKIP_INSTALL_RULES TRUE)
+
 # 引数チェック
 # cmakeの引数で、次の変数が指定される必要があります。
 # ・ -D BUILD_LIB_TYPE=static or dynamic        ビルドするのは静的ライブラリか動的ライブラリか
@@ -190,33 +193,57 @@ if( NOT(IOS OR ANDROID) )
   add_subdirectory("3rdparty/zlib")
   set(ZLIB_INCLUDE_DIR
     "${CMAKE_BINARY_DIR}/3rdparty/zlib"
-    "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/zlib")
+    "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/zlib"
+    CACHE PATH "" FORCE)
+  set(ZLIB_INCLUDE_DIRS "${ZLIB_INCLUDE_DIR}" CACHE PATH "" FORCE)
   include_directories("${ZLIB_INCLUDE_DIR}")
 
   if(UNIX)
     set(ZLIB_LIBRARY "${CMAKE_BINARY_DIR}/3rdparty/zlib/libz.a" CACHE STRING "" FORCE)
   elseif(WIN32)
-    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-      set(ZLIB_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fbx_sdk/2020.3.1/lib/win64/${FBXSDK_LAST_DIR_NAME}/zlib-${FBXSDK_MT_OR_MD}.lib" CACHE STRING "" FORCE)
-    elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
-      set(ZLIB_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fbx_sdk/2020.3.1/lib/win32/${FBXSDK_LAST_DIR_NAME}/zlib-${FBXSDK_MT_OR_MD}.lib" CACHE STRING "" FORCE)
+    # FBX SDK有効時はFBX SDK同梱のzlibを使用、無効時は自前ビルドのzlibを使用
+    if(PLATEAU_USE_FBX)
+      if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        set(ZLIB_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fbx_sdk/2020.3.1/lib/win64/${FBXSDK_LAST_DIR_NAME}/zlib-${FBXSDK_MT_OR_MD}.lib" CACHE STRING "" FORCE)
+      elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+        set(ZLIB_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fbx_sdk/2020.3.1/lib/win32/${FBXSDK_LAST_DIR_NAME}/zlib-${FBXSDK_MT_OR_MD}.lib" CACHE STRING "" FORCE)
+      endif()
+    else()
+      set(ZLIB_LIBRARY zlibstatic CACHE STRING "" FORCE)
     endif()
   endif(UNIX)
+  set(ZLIB_LIBRARIES "${ZLIB_LIBRARY}" CACHE STRING "" FORCE)
 
-  ## libxml2(FBX SDKの依存関係)
-  if(UNIX)
-    # FBX SDKのLinux, macOS向けライブラリではiconvが必要
-    set(LIBXML2_WITH_ICONV ON CACHE BOOL "" FORCE)
-  elseif(WIN32)
-    set(LIBXML2_WITH_ICONV OFF CACHE BOOL "" FORCE)
+  # libtiff等のfind_package(ZLIB)で使用されるZLIB::ZLIBターゲットを作成
+  set(ZLIB_FOUND TRUE CACHE BOOL "" FORCE)
+  if(NOT TARGET ZLIB::ZLIB)
+    if(WIN32 AND PLATEAU_USE_FBX)
+      # FBX SDK同梱のzlibを使用する場合はIMPORTEDターゲットを作成
+      add_library(ZLIB::ZLIB STATIC IMPORTED)
+      set_target_properties(ZLIB::ZLIB PROPERTIES
+        IMPORTED_LOCATION "${ZLIB_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES "${ZLIB_INCLUDE_DIR}"
+      )
+    else()
+      # 自前ビルドのzlibを使用
+      add_library(ZLIB::ZLIB ALIAS zlibstatic)
+    endif()
   endif()
-  set(LIBXML2_WITH_LZMA OFF CACHE BOOL "" FORCE)
-  set(LIBXML2_WITH_PYTHON OFF CACHE BOOL "" FORCE)
-  set(LIBXML2_WITH_TESTS OFF CACHE BOOL "" FORCE)
-
-  add_subdirectory("3rdparty/libxml2")
 
   if(PLATEAU_USE_FBX)
+    ## libxml2(FBX SDKの依存関係)
+    if(UNIX)
+      # FBX SDKのLinux, macOS向けライブラリではiconvが必要
+      set(LIBXML2_WITH_ICONV ON CACHE BOOL "" FORCE)
+    elseif(WIN32)
+      set(LIBXML2_WITH_ICONV OFF CACHE BOOL "" FORCE)
+    endif()
+    set(LIBXML2_WITH_LZMA OFF CACHE BOOL "" FORCE)
+    set(LIBXML2_WITH_PYTHON OFF CACHE BOOL "" FORCE)
+    set(LIBXML2_WITH_TESTS OFF CACHE BOOL "" FORCE)
+
+    add_subdirectory("3rdparty/libxml2")
+
     ## FBX SDK
     set(FBXSDK_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fbx_sdk/2020.3.1/include")
 
@@ -283,6 +310,12 @@ if (NOT(IOS OR ANDROID))
 endif()
 
 ## libjpeg-turbo
+# RUNTIME_LIB_TYPEに基づいてSTATIC_WINDOWS_RUNTIMEを設定
+if(RUNTIME_LIB_TYPE STREQUAL "MT")
+  set(STATIC_WINDOWS_RUNTIME ON)
+else()
+  set(STATIC_WINDOWS_RUNTIME OFF)
+endif()
 include(3rdparty/libjpeg-turbo/libjpeg-turbo.cmake)
 
 
