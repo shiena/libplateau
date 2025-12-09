@@ -1,9 +1,13 @@
+#ifdef PLATEAU_USE_HTTP
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include <httplib.h>
+#endif
+
 #include <plateau/basemap/vector_tile_downloader.h>
 #include <plateau/basemap/tile_projection.h>
 #include <filesystem>
 #include <fstream>
+#include <stdexcept>
 
 
 namespace fs = std::filesystem;
@@ -84,6 +88,7 @@ VectorTileDownloader::VectorTileDownloader(
 }
 
 
+#ifdef PLATEAU_USE_HTTP
 namespace {
     void replaceStr(std::string& str, const std::string& from, const std::string& to) {
         const auto pos = str.find(from);
@@ -174,6 +179,26 @@ std::shared_ptr<VectorTile> VectorTileDownloader::download(const std::string& ur
     download(url_template, destination, coordinate, *result);
     return result;
 }
+#else
+// Stub implementations when HTTP is disabled
+void VectorTileDownloader::download(
+    const std::string& /*url_template*/,
+    const std::string& /*destination*/,
+    const TileCoordinate& coordinate,
+    VectorTile& out_vector_tile
+) {
+    out_vector_tile.coordinate = coordinate;
+    out_vector_tile.image_path.clear();
+    out_vector_tile.result = HttpResult::Unknown;
+}
+
+std::shared_ptr<VectorTile> VectorTileDownloader::download(const std::string& url_template, const std::string& destination,
+                                                           const TileCoordinate& coordinate) {
+    auto result = std::make_shared<VectorTile>();
+    download(url_template, destination, coordinate, *result);
+    return result;
+}
+#endif // PLATEAU_USE_HTTP
 
 VectorTiles VectorTileDownloader::downloadAll() const {
     auto tiles = std::vector<VectorTile>();

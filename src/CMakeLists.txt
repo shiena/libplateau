@@ -23,17 +23,25 @@ endif()
 if( NOT(IOS OR ANDROID) )
   # plateauにリンクするのは動的ライブラリではなく静的ライブラリである必要があります。
   # なぜなら、他の動的ライブラリへの依存が生まれてしまうとUnityでDllNotFoundExceptionになるためです。
-  if(PLATEAU_USE_FBX)
-    target_link_libraries(plateau PUBLIC
-            citygml xerces-c GLTFSDK crypto ssl "${FBXSDK_LIBRARIES}" LibXml2 "${ZLIB_LIBRARY}" c_wrapper "${LibOpenMeshCore}" "${LibOpenMeshTools}"
-            )
-    target_include_directories(plateau PUBLIC "${CMAKE_SOURCE_DIR}/include" "${LIBCITYGML_INCLUDE}" "${GLTFSDK_INCLUDE}" "${CPPHTTPLIB_INCLUDE}" "${FBXSDK_INCLUDE}")
-  else()
-    target_link_libraries(plateau PUBLIC
-            citygml xerces-c GLTFSDK crypto ssl "${ZLIB_LIBRARY}" c_wrapper "${LibOpenMeshCore}" "${LibOpenMeshTools}"
-            )
-    target_include_directories(plateau PUBLIC "${CMAKE_SOURCE_DIR}/include" "${LIBCITYGML_INCLUDE}" "${GLTFSDK_INCLUDE}" "${CPPHTTPLIB_INCLUDE}")
+
+  # Base libraries (without HTTP)
+  set(PLATEAU_LINK_LIBS citygml xerces-c GLTFSDK "${ZLIB_LIBRARY}" c_wrapper "${LibOpenMeshCore}" "${LibOpenMeshTools}")
+  set(PLATEAU_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/include" "${LIBCITYGML_INCLUDE}" "${GLTFSDK_INCLUDE}")
+
+  # Add HTTP libraries if enabled
+  if(PLATEAU_USE_HTTP)
+    list(APPEND PLATEAU_LINK_LIBS crypto ssl)
+    list(APPEND PLATEAU_INCLUDE_DIRS "${CPPHTTPLIB_INCLUDE}")
   endif()
+
+  # Add FBX libraries if enabled
+  if(PLATEAU_USE_FBX)
+    list(APPEND PLATEAU_LINK_LIBS "${FBXSDK_LIBRARIES}" LibXml2)
+    list(APPEND PLATEAU_INCLUDE_DIRS "${FBXSDK_INCLUDE}")
+  endif()
+
+  target_link_libraries(plateau PUBLIC ${PLATEAU_LINK_LIBS})
+  target_include_directories(plateau PUBLIC ${PLATEAU_INCLUDE_DIRS})
 
   # 注意点:
   # libpngのバージョンは、Unreal EngineのPngImageWrapper.hに記載のバージョンに合わせる必要があります。
@@ -47,17 +55,12 @@ if( NOT(IOS OR ANDROID) )
     "${HMM_INCLUDE}"
   )
 else()
-  target_link_libraries(plateau PUBLIC
-    "citygml"
-    "GLTFSDK"
-    "crypto"
-    "ssl"
-    "c_wrapper"
-    "png_static"
-    "${LibOpenMeshCore}"
-    "${LibOpenMeshTools}"
-    "hmm"
-  )
+  # iOS/Android build
+  set(PLATEAU_MOBILE_LIBS citygml GLTFSDK c_wrapper png_static "${LibOpenMeshCore}" "${LibOpenMeshTools}" hmm)
+  if(PLATEAU_USE_HTTP)
+    list(APPEND PLATEAU_MOBILE_LIBS crypto ssl)
+  endif()
+  target_link_libraries(plateau PUBLIC ${PLATEAU_MOBILE_LIBS})
 
   # UnityでiOS向けのビルドを通すため、info.plistというファイルにバイナリの情報が入るようにします。
   # バージョンもUnityビルドに必要ですが、値は何でも良いのでずっと"1.0"のままで良さそうです。
@@ -97,14 +100,14 @@ if(BUILD_LIB_TYPE STREQUAL "static")
           $<TARGET_FILE:citygml>
           $<TARGET_FILE:xerces-c>
           $<TARGET_FILE:GLTFSDK>
-          $<TARGET_FILE:crypto>
-          $<TARGET_FILE:ssl>
-          $<TARGET_FILE:httplib>
           $<TARGET_FILE:zlibstatic>
           $<TARGET_FILE:png_static>
           $<TARGET_FILE:tiff>
           $<TARGET_FILE:hmm>
           ${JPEG_TURBO_LIBRARIES})
+  if(PLATEAU_USE_HTTP)
+    list(APPEND COMBINE_LIB_FILES $<TARGET_FILE:crypto> $<TARGET_FILE:ssl> $<TARGET_FILE:httplib>)
+  endif()
   if(PLATEAU_USE_FBX)
     list(APPEND COMBINE_LIB_FILES $<TARGET_FILE:LibXml2> ${FBXSDK_LIBRARIES})
   endif()
@@ -122,7 +125,10 @@ if(BUILD_LIB_TYPE STREQUAL "static")
   endif()
 
   if(BUILD_LIB_TYPE STREQUAL "static")
-    set(COMBINE_LIB_DEPENDS plateau citygml xerces-c GLTFSDK crypto ssl httplib zlibstatic libjpeg-turbo png_static tiff ${LibOpenMeshCore} ${LibOpenMeshTools} hmm)
+    set(COMBINE_LIB_DEPENDS plateau citygml xerces-c GLTFSDK zlibstatic libjpeg-turbo png_static tiff ${LibOpenMeshCore} ${LibOpenMeshTools} hmm)
+    if(PLATEAU_USE_HTTP)
+      list(APPEND COMBINE_LIB_DEPENDS crypto ssl httplib)
+    endif()
     if(PLATEAU_USE_FBX)
       list(APPEND COMBINE_LIB_DEPENDS LibXml2)
     endif()

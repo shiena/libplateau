@@ -1,11 +1,15 @@
 #include <plateau/texture/map_zoom_level_searcher.h>
 #include <plateau/basemap/tile_projection.h>
 #include <plateau/basemap/vector_tile_downloader.h>
+
+#ifdef PLATEAU_USE_HTTP
 #include <httplib.h>
+#endif
 
 
 namespace plateau::texture {
     MapZoomLevelSearchResult MapZoomLevelSearcher::search(const std::string& url_template, const geometry::GeoCoordinate geo_coord) {
+#ifdef PLATEAU_USE_HTTP
         // 考えうるズームレベルについて実際にアクセスしてみて、HTTPのステータスコードが200だったものを「利用可能なズームレベル」とみなします。
         int found_min = 9999;
         int found_max = -1;
@@ -28,6 +32,11 @@ namespace plateau::texture {
             }
         }
         return {is_succeed, found_min, found_max};
-
+#else
+        (void)url_template;
+        (void)geo_coord;
+        // HTTP disabled - return failure
+        return {false, 0, 0};
+#endif
     }
 }
