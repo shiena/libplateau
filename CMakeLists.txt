@@ -39,6 +39,7 @@ set(CMAKE_SKIP_INSTALL_RULES TRUE)
 SET(BUILD_LIB_TYPE "dynamic" CACHE STRING "static or dynamic")
 SET(RUNTIME_LIB_TYPE "MT" CACHE STRING "MT or MD")
 option(PLATEAU_USE_FBX "Enable FBX SDK support" ON)
+option(PLATEAU_USE_HTTP "Enable HTTP/HTTPS support (cpp-httplib + OpenSSL)" ON)
 if(NOT ( BUILD_LIB_TYPE STREQUAL "static" OR BUILD_LIB_TYPE STREQUAL "dynamic"))
   message(FATAL_ERROR "Variable not set. use -D BUILD_LIB_TYPE=static or dynamic")
 endif()
@@ -291,13 +292,18 @@ if( NOT(IOS OR ANDROID) )
   endif()
 endif()
 
-## openssl
-add_subdirectory("3rdparty/openssl-cmake")
+## openssl and cpp-httplib (optional)
+if(PLATEAU_USE_HTTP)
+  add_subdirectory("3rdparty/openssl-cmake")
 
-# cpp-httplib
-set(HTTPLIB_COMPILE TRUE CACHE BOOL "" FORCE)
-add_subdirectory("3rdparty/cpp-httplib")
-set(CPPHTTPLIB_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/cpp-httplib")
+  set(HTTPLIB_COMPILE TRUE CACHE BOOL "" FORCE)
+  add_subdirectory("3rdparty/cpp-httplib")
+  set(CPPHTTPLIB_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/cpp-httplib")
+  add_definitions(-DPLATEAU_USE_HTTP)
+else()
+  message("PLATEAU_USE_HTTP=OFF: HTTP/HTTPS support is disabled (cpp-httplib and OpenSSL excluded)")
+  set(CPPHTTPLIB_INCLUDE "")
+endif()
 
 if (NOT(IOS OR ANDROID))
 

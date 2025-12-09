@@ -1,14 +1,17 @@
 #include <plateau/network/client.h>
 
+#ifdef PLATEAU_USE_HTTP
 #define CPPHTTPLIB_OPENSSL_SUPPORT
-
 #include "../../3rdparty/cpp-httplib/httplib.h"
+#endif
+
 #include "../../3rdparty/json/single_include/nlohmann/json.hpp"
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
 
 namespace {
+#ifdef PLATEAU_USE_HTTP
     /// httplib::Client を作成し、それにURLとAPIトークンを設定して返します。
     /// APIトークンが空文字なら Bearer 認証を設定しません。
     httplib::Client createHttpLibClient(const std::string& url, const std::string& api_token) {
@@ -20,6 +23,7 @@ namespace {
         }
         return client;
     }
+#endif
 
     /// 本番APIサーバーのURLをデフォルト値とします。
     const std::string& getDefaultServerUrl() {
@@ -60,6 +64,7 @@ namespace plateau::network {
     }
 
     void Client::getMetadata(std::vector<DatasetMetadataGroup>& out_metadata_groups) const {
+#ifdef PLATEAU_USE_HTTP
         auto cli = createHttpLibClient(server_url_, api_token_);
         cli.enable_server_certificate_verification(false);
         auto res = cli.Get(endPointUrlForMetadataGroups());
@@ -89,6 +94,9 @@ namespace plateau::network {
                 out_metadata_groups.push_back(dataset_metadata_group);
             }
         }
+#else
+        (void)out_metadata_groups; // HTTP disabled - no data returned
+#endif
     }
 
     std::shared_ptr<std::vector<DatasetMetadataGroup>> Client::getMetadata() const {
@@ -98,12 +106,12 @@ namespace plateau::network {
     }
 
     DatasetFiles Client::getFiles(const std::string& id) const {
+        DatasetFiles dataset_files;
+#ifdef PLATEAU_USE_HTTP
         auto file_url_lod = std::make_shared<std::map<std::string, std::vector<std::pair<float, std::string>>>>();
         auto cli = createHttpLibClient(server_url_, api_token_);
         cli.enable_server_certificate_verification(false);
         auto res = cli.Get(endPointUrlForFiles(id));
-
-        DatasetFiles dataset_files;
 
         if (res && res->status == 200) {
             auto jres = json::parse(res->body);
@@ -122,10 +130,14 @@ namespace plateau::network {
                 }
             }
         }
+#else
+        (void)id; // HTTP disabled - no data returned
+#endif
         return dataset_files;
     }
 
     std::string Client::download(const std::string& destination_directory_path, const std::string& url_str_arg) const {
+#ifdef PLATEAU_USE_HTTP
         auto url_str = url_str_arg;
         auto destination_directory = fs::u8path(destination_directory_path);
         auto url = fs::u8path(url_str);
@@ -172,6 +184,11 @@ namespace plateau::network {
             ofs.write(body.c_str(), body.size());
         }
         return gml_file_path.u8string();
+#else
+        (void)destination_directory_path;
+        (void)url_str_arg;
+        return ""; // HTTP disabled
+#endif
     }
 
     const std::string& Client::getMockServerUrl() {
