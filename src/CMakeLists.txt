@@ -56,7 +56,8 @@ if( NOT(IOS OR ANDROID) )
   )
 else()
   # iOS/Android build
-  set(PLATEAU_MOBILE_LIBS citygml GLTFSDK c_wrapper png_static "${LibOpenMeshCore}" "${LibOpenMeshTools}" hmm)
+  # モバイル向けはダミー実装(texture_image_base_dummy.cpp)を使用するためlibpng不要
+  set(PLATEAU_MOBILE_LIBS citygml GLTFSDK c_wrapper "${LibOpenMeshCore}" "${LibOpenMeshTools}" hmm)
   if(PLATEAU_USE_HTTP)
     list(APPEND PLATEAU_MOBILE_LIBS crypto ssl)
   endif()
@@ -72,7 +73,7 @@ else()
   )
 
   target_include_directories(plateau PUBLIC "${CMAKE_SOURCE_DIR}/include" "${LIBCITYGML_INCLUDE}" "${GLTFSDK_INCLUDE}" "${CPPHTTPLIB_INCLUDE}")
-  target_include_directories(plateau PUBLIC "${PNG_INCLUDE_DIRS}"  "${HMM_INCLUDE}")
+  target_include_directories(plateau PUBLIC "${HMM_INCLUDE}")
 endif()
 
 set_target_properties(plateau PROPERTIES RUNTIME_OUTPUT_DIRECTORY
@@ -93,7 +94,8 @@ add_subdirectory(height_map_generator)
 add_subdirectory(material_adjust)
 
 # libファイルを1つに結合します。
-if(BUILD_LIB_TYPE STREQUAL "static")
+# iOS/Androidはダミー実装使用のため3rdpartyライブラリ不要（libplateau.aのみ）
+if(BUILD_LIB_TYPE STREQUAL "static" AND NOT(IOS OR ANDROID))
 
   set(COMBINE_LIB_FILES
           $<TARGET_FILE:plateau>
