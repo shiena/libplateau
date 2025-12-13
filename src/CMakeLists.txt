@@ -157,24 +157,27 @@ if(BUILD_LIB_TYPE STREQUAL "static")
                 WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                 )
       else()
-        # linux で libファイル結合は現状うまくいっていません。
-        # 参考 : https://qiita.com/fault/items/2a3201fc697a2e537906
-  #      set(ADDLIB_ARGS "")
-  #      foreach(LIB ${COMBINE_LIB_FILES})
-  #        message("LIB = ${LIB}")
-  #        list(APPEND ADDLIB_ARGS addlib ${LIB} "\\n" )
-  #      endforeach()
-  #      message("addlib_args = ${ADDLIB_ARGS}")
-  #      set(COMBINE_ARG "-n -e create $<TARGET_FILE_DIR:plateau>/plateau_combined.a \\n ${ADDLIB_ARGS} \\n save \\n end")
-  #      message(combine_arg = ${COMBINE_ARG})
-  #      add_custom_command(
-  #              TARGET plateau
-  #              POST_BUILD
-                #COMMAND echo -n -e create $<TARGET_FILE_DIR:plateau>/plateau_combined.a \n ${ADDLIB_ARGS} \n save \n end | ar -M
-  #              COMMAND echo ${COMBINE_ARG} | ar -M
-  #              DEPENDS ${COMBINE_LIB_DEPENDS}
-  #              WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  #      )
+        # Linux で libファイル結合します。
+        # MRIスクリプトを生成してarコマンドで結合
+        set(MRI_SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/combine.mri")
+        set(COMBINED_LIB "$<TARGET_FILE_DIR:plateau>/libplateau_combined.a")
+
+        # MRIスクリプトの内容を生成
+        set(MRI_CONTENT "CREATE ${COMBINED_LIB}\n")
+        foreach(LIB ${COMBINE_LIB_FILES})
+          string(APPEND MRI_CONTENT "ADDLIB ${LIB}\n")
+        endforeach()
+        string(APPEND MRI_CONTENT "SAVE\nEND\n")
+
+        file(GENERATE OUTPUT "${MRI_SCRIPT}" CONTENT "${MRI_CONTENT}")
+
+        add_custom_target(plateau_combined
+                ALL
+                COMMAND ar -M < "${MRI_SCRIPT}"
+                DEPENDS ${COMBINE_LIB_DEPENDS}
+                WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                COMMENT "Combining static libraries into libplateau_combined.a"
+                )
       endif()
     endif()
   endif()

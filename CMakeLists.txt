@@ -109,11 +109,11 @@ set(LIBPLATEAU_BINARY_DIR ${libplateau_BINARY_DIR}/bin)
 
 
 
-# Linuxで shared library を作るときにはコンパイルオプション -fPIC が必要なので付加します。
-# ただし、Windowsの MSVC でコンパイルするときは -fPIC が不要で、付けると警告が出るので付加しません。
+# Linux では静的ライブラリを共有ライブラリにリンクする場合も -fPIC が必要なので付加します。
+# Windows の MSVC では -fPIC が不要で、付けると警告が出るので付加しません。
 include(CheckCXXCompilerFlag)
 check_cxx_compiler_flag(-fPIC COMPILER_SUPPORTS_PIC)
-if(COMPILER_SUPPORTS_PIC AND (BUILD_LIB_TYPE STREQUAL "dynamic"))
+if(COMPILER_SUPPORTS_PIC AND ((BUILD_LIB_TYPE STREQUAL "dynamic") OR (CMAKE_SYSTEM_NAME STREQUAL "Linux")))
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 endif()
